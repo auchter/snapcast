@@ -41,6 +41,7 @@ LibrespotStream::LibrespotStream(PcmListener* pcmListener, boost::asio::io_conte
     string cache = uri_.getQuery("cache", "");
     bool disable_audio_cache = (uri_.getQuery("disable_audio_cache", "false") == "true");
     string volume = uri_.getQuery("volume", "100");
+    string volume_ctrl = uri_.getQuery("volume_ctrl", "");
     string bitrate = uri_.getQuery("bitrate", "320");
     string devicename = uri_.getQuery("devicename", "Snapcast");
     string onevent = uri_.getQuery("onevent", "");
@@ -63,6 +64,8 @@ LibrespotStream::LibrespotStream(PcmListener* pcmListener, boost::asio::io_conte
         params_ += " --disable-audio-cache";
     if (!volume.empty())
         params_ += " --initial-volume " + volume;
+    if (!volume_ctrl.empty())
+        params_ += " --volume-ctrl " + volume_ctrl;
     if (!onevent.empty())
         params_ += " --onevent \"" + onevent + "\"";
     if (normalize)
