@@ -33,6 +33,7 @@
 #include "message/message.hpp"
 #include "message/pcm_chunk.hpp"
 #include "resampler.hpp"
+#include "brutefir.hpp"
 
 /// Time synchronized audio stream
 /**
@@ -42,7 +43,7 @@
 class Stream
 {
 public:
-    Stream(const SampleFormat& in_format, const SampleFormat& out_format);
+    Stream(const SampleFormat& in_format, const SampleFormat& out_format, boost::asio::io_context& ioc);
     virtual ~Stream() = default;
 
     /// Adds PCM data to the queue
@@ -99,6 +100,9 @@ private:
     void resetBuffers();
     void setRealSampleRate(double sampleRate);
 
+    /// Add fully processed chunk to queue for playback
+    void addChunkForPlayback(std::shared_ptr<msg::PcmChunk> chunk);
+
     SampleFormat format_;
     SampleFormat in_format_;
 
@@ -120,6 +124,7 @@ private:
     std::atomic<chronos::msec> bufferMs_;
 
     std::unique_ptr<Resampler> resampler_;
+    std::unique_ptr<BruteFIR> brutefir_;
 
     std::vector<char> resample_buffer_;
     std::vector<char> read_buffer_;

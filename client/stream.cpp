@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <functional>
 
 
 using namespace std;
@@ -39,7 +40,7 @@ static constexpr auto kCorrectionBegin = 100us;
 
 // #define LOG_LATENCIES
 
-Stream::Stream(const SampleFormat& in_format, const SampleFormat& out_format)
+Stream::Stream(const SampleFormat& in_format, const SampleFormat& out_format, boost::asio::io_context& ioc)
     : in_format_(in_format), median_(0), shortMedian_(0), lastUpdate_(0), playedFrames_(0), correctAfterXFrames_(0), bufferMs_(cs::msec(500)), frame_delta_(0),
       hard_sync_(true)
 {
@@ -64,6 +65,7 @@ Stream::Stream(const SampleFormat& in_format, const SampleFormat& out_format)
     */
     // setRealSampleRate(format_.rate());
     resampler_ = std::make_unique<Resampler>(in_format_, format_);
+    brutefir_ = std::make_unique<BruteFIR>(ioc, std::bind(&Stream::addChunkForPlayback, this, std::placeholders::_1));
 }
 
 
@@ -104,23 +106,32 @@ void Stream::addChunk(unique_ptr<msg::PcmChunk> chunk)
         return;
 
     auto resampled = resampler_->resample(std::move(chunk));
-    if (resampled)
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        recent_ = resampled;
-        chunks_.push(resampled);
+    if (!resampled)
+        return;
 
-        std::shared_ptr<msg::PcmChunk> front_;
-        while (chunks_.front_copy(front_))
-        {
-            age = std::chrono::duration_cast<cs::msec>(TimeProvider::serverNow() - front_->start());
-            if ((age > 5s + bufferMs_.load()) && chunks_.try_pop(front_))
-                LOG(TRACE, LOG_TAG) << "Oldest chunk too old: " << age.count() << " ms, removing. Chunks in queue left: " << chunks_.size() << "\n";
-            else
-                break;
-        }
-    }
+    if (true)
+        brutefir_->filter(std::move(resampled));
+    else
+        addChunkForPlayback(resampled);
     // LOG(TRACE, LOG_TAG) << "new chunk: " << chunk->durationMs() << " ms, age: " << age.count() << " ms, Chunks: " << chunks_.size() << "\n";
+}
+
+
+void Stream::addChunkForPlayback(shared_ptr<msg::PcmChunk> chunk)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    recent_ = chunk;
+    chunks_.push(chunk);
+
+    std::shared_ptr<msg::PcmChunk> front_;
+    while (chunks_.front_copy(front_))
+    {
+        auto age = std::chrono::duration_cast<cs::msec>(TimeProvider::serverNow() - front_->start());
+        if ((age > 5s + bufferMs_.load()) && chunks_.try_pop(front_))
+            LOG(TRACE, LOG_TAG) << "Oldest chunk too old: " << age.count() << " ms, removing. Chunks in queue left: " << chunks_.size() << "\n";
+        else
+            break;
+    }
 }
 
 

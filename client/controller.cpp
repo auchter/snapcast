@@ -185,7 +185,7 @@ void Controller::getNextMessage()
             sampleFormat_ = decoder_->setHeader(headerChunk_.get());
             LOG(INFO, LOG_TAG) << "Codec: " << headerChunk_->codec << ", sampleformat: " << sampleFormat_.toString() << "\n";
 
-            stream_ = make_shared<Stream>(sampleFormat_, settings_.player.sample_format);
+            stream_ = make_shared<Stream>(sampleFormat_, settings_.player.sample_format, io_context_);
             stream_->setBufferLen(std::max(0, serverSettings_->getBufferMs() - serverSettings_->getLatency() - settings_.player.latency));
 
 #ifdef HAS_ALSA

@@ -1,4 +1,5 @@
 set(CLIENT_SOURCES
+    brutefir.cpp
     client_connection.cpp
     controller.cpp
     snapclient.cpp
@@ -53,6 +54,8 @@ elseif(NOT ANDROID)
         list(APPEND CLIENT_LIBRARIES ${PULSE_LIBRARIES})
         list(APPEND CLIENT_INCLUDE ${PULSE_INCLUDE_DIRS})
     endif (PULSE_FOUND)
+
+    list(APPEND CLIENT_LIBRARIES ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 endif (MACOSX)
 
 if (ANDROID)
