@@ -64,6 +64,7 @@ struct ClientSettings
         SampleFormat sample_format;
         SharingMode sharing_mode{SharingMode::unspecified};
         Mixer mixer;
+        std::string brutefir_config{""};
     };
 
     struct Logging

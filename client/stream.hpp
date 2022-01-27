@@ -43,7 +43,7 @@
 class Stream
 {
 public:
-    Stream(const SampleFormat& in_format, const SampleFormat& out_format, boost::asio::io_context& ioc);
+    Stream(const SampleFormat& in_format, const SampleFormat& out_format, const std::string& brutefir_config, boost::asio::io_context& ioc);
     virtual ~Stream() = default;
 
     /// Adds PCM data to the queue

@@ -40,7 +40,7 @@ static constexpr auto kCorrectionBegin = 100us;
 
 // #define LOG_LATENCIES
 
-Stream::Stream(const SampleFormat& in_format, const SampleFormat& out_format, boost::asio::io_context& ioc)
+Stream::Stream(const SampleFormat& in_format, const SampleFormat& out_format, const string& brutefir_config, boost::asio::io_context& ioc)
     : in_format_(in_format), median_(0), shortMedian_(0), lastUpdate_(0), playedFrames_(0), correctAfterXFrames_(0), bufferMs_(cs::msec(500)), frame_delta_(0),
       hard_sync_(true)
 {
@@ -65,7 +65,10 @@ Stream::Stream(const SampleFormat& in_format, const SampleFormat& out_format, bo
     */
     // setRealSampleRate(format_.rate());
     resampler_ = std::make_unique<Resampler>(in_format_, format_);
-    brutefir_ = std::make_unique<BruteFIR>(ioc, std::bind(&Stream::addChunkForPlayback, this, std::placeholders::_1));
+    if (brutefir_config != "")
+    {
+        brutefir_ = std::make_unique<BruteFIR>(brutefir_config, ioc, std::bind(&Stream::addChunkForPlayback, this, std::placeholders::_1));
+    }
 }
 
 
@@ -109,7 +112,7 @@ void Stream::addChunk(unique_ptr<msg::PcmChunk> chunk)
     if (!resampled)
         return;
 
-    if (true)
+    if (brutefir_)
         brutefir_->filter(std::move(resampled));
     else
         addChunkForPlayback(resampled);

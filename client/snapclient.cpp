@@ -151,6 +151,8 @@ int main(int argc, char** argv)
         auto sample_format = op.add<Value<string>>("", "sampleformat", "resample audio stream to <rate>:<bits>:<channels>", "");
 #endif
 
+	auto brutefir_config = op.add<Value<string>>("", "brutefir_config", "path to brutefir config to use for filtering", "", &settings.player.brutefir_config);
+
         auto supported_players = Controller::getSupportedPlayerNames();
         string supported_players_str;
         for (const auto& supported_player : supported_players)

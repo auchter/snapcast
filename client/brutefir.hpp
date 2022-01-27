@@ -36,20 +36,19 @@ using add_chunk_callback = std::function<void(std::shared_ptr<msg::PcmChunk>)>;
 class BruteFIR
 {
 public:
-    BruteFIR(boost::asio::io_context& ioc, add_chunk_callback cb);
+    BruteFIR(const std::string& brutefir_config, boost::asio::io_context& ioc, add_chunk_callback cb);
     virtual ~BruteFIR();
 
     void filter(std::shared_ptr<msg::PcmChunk> chunk);
 private:
-    add_chunk_callback addChunk;
-
-    mutable std::mutex mutex_;
     Queue<std::shared_ptr<msg::PcmChunk>> chunks_;
 
     bp::child process_;
     bp::async_pipe pipe_stdout_;
     bp::async_pipe pipe_stdin_;
     bp::async_pipe pipe_stderr_;
+
+    add_chunk_callback add_chunk_;
 };
 
 #endif

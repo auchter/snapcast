@@ -18,6 +18,9 @@
 
 #include <string>
 #include <cstdio>
+#include <vector>
+#include <boost/process/start_dir.hpp>
+#include <boost/filesystem.hpp>
 #include "brutefir.hpp"
 #include "common/aixlog.hpp"
 #include "common/snap_exception.hpp"
@@ -29,14 +32,18 @@ using namespace std;
 
 static constexpr auto LOG_TAG = "BruteFIR";
 
-BruteFIR::BruteFIR(boost::asio::io_context& ioc, add_chunk_callback cb)
-    : addChunk(cb), pipe_stdout_(ioc), pipe_stdin_(ioc), pipe_stderr_(ioc)
+BruteFIR::BruteFIR(const std::string& brutefir_config, boost::asio::io_context& ioc, add_chunk_callback cb)
+    : pipe_stdout_(ioc), pipe_stdin_(ioc), pipe_stderr_(ioc), add_chunk_(cb)
 {
     auto exe = bp::search_path("brutefir");
     if (exe == "")
         throw SnapException("brutefir not found");
 
+    auto config = boost::filesystem::path(brutefir_config);
+
     LOG(DEBUG, LOG_TAG) << "Found BruteFIR binary at: " << exe << "\n";
+    LOG(DEBUG, LOG_TAG) << "Using config: " << brutefir_config << "\n";
+    LOG(DEBUG, LOG_TAG) << "Parent: " << config.parent_path() << "\n";
 
     try
     {
@@ -54,7 +61,7 @@ BruteFIR::BruteFIR(boost::asio::io_context& ioc, add_chunk_callback cb)
         }
     }
 
-    process_ = bp::child(exe, bp::std_out > pipe_stdout_, bp::std_err > pipe_stderr_, bp::std_in < pipe_stdin_);
+    process_ = bp::child(exe, brutefir_config, bp::start_dir(config.parent_path()), bp::std_out > pipe_stdout_, bp::std_err > pipe_stderr_, bp::std_in < pipe_stdin_);
 }
 
 BruteFIR::~BruteFIR()
@@ -69,20 +76,21 @@ BruteFIR::~BruteFIR()
 void BruteFIR::filter(std::shared_ptr<msg::PcmChunk> chunk)
 {
     if (!process_.running())
+    {
         throw SnapException("BruteFIR process not running, bailing...");
+    }
 
-    boost::asio::async_write(pipe_stdin_, boost::asio::buffer(chunk->payload, chunk->payloadSize), [this](const std::error_code& ec, std::size_t bytes) {
+    boost::asio::async_write(pipe_stdin_, boost::asio::buffer(chunk->payload, chunk->payloadSize), [this](const std::error_code& ec, std::size_t) {
         if (ec)
         {
             LOG(WARNING, LOG_TAG) << "async write failed: " << ec.message() << "\n";
             return;
         }
-
     });
 
     chunks_.push(chunk);
 
-    boost::asio::async_read(pipe_stdout_, boost::asio::buffer(chunk->payload, chunk->payloadSize), [this](const std::error_code& ec, std::size_t bytes) {
+    boost::asio::async_read(pipe_stdout_, boost::asio::buffer(chunk->payload, chunk->payloadSize), [this](const std::error_code& ec, std::size_t) {
         if (ec)
         {
             LOG(WARNING, LOG_TAG) << "async read failed: " << ec.message() << "\n";
@@ -90,7 +98,7 @@ void BruteFIR::filter(std::shared_ptr<msg::PcmChunk> chunk)
         }
 
         auto chunk = chunks_.pop();
-        addChunk(chunk);
+        add_chunk_(chunk);
     });
 
 }
