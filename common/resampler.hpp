@@ -23,6 +23,7 @@
 #include "common/sample_format.hpp"
 #include <deque>
 #include <vector>
+#include <memory>
 #ifdef HAS_SOXR
 #include <soxr.h>
 #endif
